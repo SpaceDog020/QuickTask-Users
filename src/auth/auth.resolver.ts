@@ -2,7 +2,6 @@ import { Args, Mutation, Resolver } from '@nestjs/graphql';
 import { AuthService } from './auth.service';
 import { LoginUserInput } from './dto/login-user.input';
 import { AuthResponse } from './dto/auth-response.dto';
-import { ConflictException } from '@nestjs/common';
 
 @Resolver()
 export class AuthResolver {
@@ -18,12 +17,11 @@ export class AuthResolver {
     const user = await this.authService.validateUser(email, password);
 
     if (!user) {
-      return {response: "Correo o contraseña inválidos" };
+      return {response: false, accessToken: "" , name: ""};
     }
 
     // Si las credenciales son válidas, generar un token JWT
     const { accessToken } = await this.authService.generateToken(user.id);
-
-    return { response: accessToken };
+    return { response: true, accessToken , name: user.name};
   }
 }
