@@ -5,7 +5,7 @@ import { UsersModule } from './users/users.module';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApolloFederationDriver, ApolloFederationDriverConfig } from '@nestjs/apollo';
-import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -15,18 +15,21 @@ import { AuthModule } from './auth/auth.module';
         federation: 2,
       },
     }),
+    ConfigModule.forRoot({
+      envFilePath: ['.env'],
+      isGlobal: true,
+    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: '123',
-      database: 'Task_Users',
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT),
+      username: process.env.DB_USER,
+      password: process.env.DB_PASS,
+      database: process.env.DB_DATABASE,
       entities: ['dist/**/*.entity{.ts,.js}'],
       synchronize: true
     }),
-    UsersModule,
-    AuthModule],
+    UsersModule],
   controllers: [AppController],
   providers: [AppService],
 })
