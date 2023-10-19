@@ -1,10 +1,12 @@
 import { Query, Resolver, Args, Int, Mutation } from '@nestjs/graphql';
 import { UsersService } from './users.service';
-import { Response, User,  } from './entities/user.entity';
+import { ResponseUser, User  } from './entities/user.entity';
 import { RegisterUserInput } from './dto/register-user.input';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
 import { ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { AddTeamInput } from './dto/add-team.input';
+import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
 
 @Resolver()
 export class UsersResolver {
@@ -27,7 +29,7 @@ export class UsersResolver {
         return this.usersService.findUserByEmail(email);
     }
 
-    @Mutation((returns) => Response)
+    @Mutation((returns) => ResponseUser)
     async register(@Args('userInput') userInput: RegisterUserInput) {
         
         // Verifica si el correo electrónico ya está en uso
@@ -41,7 +43,7 @@ export class UsersResolver {
         return {response: true };
     }
 
-    @Mutation((returns) => Response)
+    @Mutation((returns) => ResponseUser)
     async recovery(@Args('recoveryInput') recoveryInput: RecoveryUserInput) {
         try{
             const sentEmail = await this.usersService.sendRecoveryEmail(recoveryInput);
@@ -61,7 +63,7 @@ export class UsersResolver {
         }
     }
 
-    @Mutation((returns) => Response)
+    @Mutation((returns) => ResponseUser)
     async validateRecovery(@Args('validaterecoveryInput') validateRecoveryInput: ValidateRecoveryUserInput) {
         try{
             const validate = await this.usersService.validateRecovery(validateRecoveryInput);
@@ -79,7 +81,7 @@ export class UsersResolver {
         }
     }
 
-    @Mutation((returns) => Response)
+    @Mutation((returns) => ResponseUser)
     async changePass(@Args('changePassUserInput') changePassUserInput: ChangePassUserInput) {
         try{
             const validate = await this.usersService.changePass(changePassUserInput);
@@ -106,6 +108,48 @@ export class UsersResolver {
                 throw new Error('user does not exist');
             }else if(error.message === 'incorrect password'){
                 throw new Error('incorrect password');
+            }else{
+                throw new Error('An error occurred');
+            }
+        }
+    }
+
+    @Mutation((returns) => ResponseUser)
+    async addTeam(@Args('addTeamInput') addTeamInput: AddTeamInput){
+        try{
+            const validate = await this.usersService.addTeam(addTeamInput);
+            if(validate){
+                return {response: true };
+            }else{
+                return {response: false };
+            }
+        }catch(error){
+            if(error.message === 'user does not exist'){
+                throw new Error('user does not exist');
+            }else if(error.message === 'team already added'){
+                throw new Error('team already added');
+            }else{
+                throw new Error('An error occurred');
+            }
+        }
+    }
+
+    @Mutation((returns) => ResponseUser)
+    async deleteTeamFromUser(@Args('deleteTeamFromUserInput') deleteTeamFromUserInput: DeleteTeamFromUserInput){
+        try{
+            const validate = await this.usersService.deleteTeam(deleteTeamFromUserInput);
+            if(validate){
+                return {response: true };
+            }else{
+                return {response: false };
+            }
+        }catch(error){
+            if(error.message === 'user does not exist'){
+                throw new Error('user does not exist');
+            }else if(error.message === 'team list is empty'){
+                throw new Error('team list is empty');
+            }else if(error.message === 'team does not exist'){
+                throw new Error('team does not exist');
             }else{
                 throw new Error('An error occurred');
             }

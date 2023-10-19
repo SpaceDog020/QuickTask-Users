@@ -7,16 +7,18 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { ChangePassUserInput } from './dto/update-user.input';
+import { AddTeamInput } from './dto/add-team.input';
+import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User) 
         private usersRepository: Repository<User>,
-        ) {}
+    ) {}
     
-        async findAll(): Promise<User[]> {
+    async findAll(): Promise<User[]> {
         return this.usersRepository.find();
     }
 
@@ -111,7 +113,7 @@ export class UsersService {
                 from: '"Quick Task" <noreply@example.com>',
                 to: email,
                 subject: "Codigo de recuperacion de contraseña",
-                text: "Estimado" + user.name + " " + user.lastName + " su codigo de recuperacion de contraseña es: " + recoveryPass,
+                text: "Estimado " + user.name + " " + user.lastName + " su codigo de recuperacion de contraseña es: " + recoveryPass,
             },
             (error) => {
                 if (error) {
@@ -158,6 +160,62 @@ export class UsersService {
             user.recoveryPass = null;
             await this.usersRepository.save(user);
             return user;
+        }
+    }
+
+    async addTeam(addTeamInput: AddTeamInput): Promise<User>{
+        const idUser = addTeamInput.idUser;
+        const idTeam = addTeamInput.idTeam;
+        const user = await this.usersRepository.findOne({
+            where: {
+                id: idUser
+            }
+        })
+
+        if(!user){
+            throw new Error('user does not exist');
+        }else{
+            if (!user.idTeams) {
+                user.idTeams = [idTeam];
+                await this.usersRepository.save(user);
+                return user;
+            }else{
+                const exist = await user.idTeams.find(id => id === idTeam);
+                if(exist){
+                    throw new Error('team already added');
+                }else{
+                    user.idTeams.push(idTeam);
+                    await this.usersRepository.save(user);
+                    return user;
+                }
+            }
+        }
+    }
+
+    async deleteTeam(deleteTeamFromUserInput: DeleteTeamFromUserInput): Promise<User>{
+        const idUser = deleteTeamFromUserInput.idUser;
+        const idTeam = deleteTeamFromUserInput.idTeam;
+        const user = await this.usersRepository.findOne({
+            where: {
+                id: idUser
+            }
+        })
+
+        if(!user){
+            throw new Error('user does not exist');
+        }else{
+            if (!user.idTeams) {
+                throw new Error('team list is empty');
+            }else{
+                const exist = await user.idTeams.find(id => id === idTeam);
+                if(!exist){
+                    throw new Error('team does not exist');
+                }else{
+                    user.idTeams = user.idTeams.filter(id => id !== idTeam);
+                    await this.usersRepository.save(user);
+                    return user;
+                }
+            }
         }
     }
 }
