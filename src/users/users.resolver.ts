@@ -155,4 +155,22 @@ export class UsersResolver {
             }
         }
     }
+
+    @Mutation((returns) => ResponseUser)
+    async updateUser(@Args('updateUserInput') updateUserInput: UpdateUserInput){
+        try{
+            const validate = await this.usersService.updateUser(updateUserInput);
+            if(validate){
+                return {response: true };
+            }else{
+                return {response: false };
+            }
+        }catch(error){
+            if(error.message === 'user does not exist'){
+                throw new Error('user does not exist');
+            }else{
+                throw new Error('An error occurred');
+            }
+        }
+    }
 }

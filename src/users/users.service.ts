@@ -7,7 +7,7 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassUserInput } from './dto/update-user.input';
+import { ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
 import { AddTeamInput } from './dto/add-team.input';
 import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
 
@@ -216,6 +216,31 @@ export class UsersService {
                     return user;
                 }
             }
+        }
+    }
+
+    async updateUser(updateUserInput: UpdateUserInput): Promise<User> {
+        const oldEmail = updateUserInput.oldEmail;
+        const user = await this.usersRepository.findOne({
+            where: {
+                email: oldEmail
+            }
+        })
+
+        if(!user){
+            throw new Error('user does not exist');
+        }else{
+            if(updateUserInput.name){
+                user.name = updateUserInput.name;
+            }
+            if(updateUserInput.lastName){
+                user.lastName = updateUserInput.lastName;
+            }
+            if(updateUserInput.email){
+                user.email = updateUserInput.email;
+            }
+            await this.usersRepository.save(user);
+            return user;
         }
     }
 }
