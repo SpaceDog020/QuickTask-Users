@@ -4,7 +4,7 @@ import { ResponseUser, User  } from './entities/user.entity';
 import { RegisterUserInput } from './dto/register-user.input';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
 import { AddTeamInput } from './dto/add-team.input';
 import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
 
@@ -82,9 +82,9 @@ export class UsersResolver {
     }
 
     @Mutation((returns) => ResponseUser)
-    async changePass(@Args('changePassUserInput') changePassUserInput: ChangePassUserInput) {
+    async changePassRecovery(@Args('changePassRecoveryUserInput') changePassRecoveryUserInput: ChangePassRecoveryUserInput) {
         try{
-            const validate = await this.usersService.changePass(changePassUserInput);
+            const validate = await this.usersService.changePassRecovery(changePassRecoveryUserInput);
             if(validate){
                 return {response: true };
             }else{
@@ -93,6 +93,24 @@ export class UsersResolver {
         }catch(error){
             if(error.message === 'same password'){
                 throw new Error('same password');
+            }else{
+                throw new Error('An error occurred');
+            }
+        }
+    }
+
+    @Mutation((returns) => ResponseUser)
+    async changePassword(@Args('changePassInput') changePassInput: ChangePassUserInput) {
+        try{
+            const validate = await this.usersService.changePassword(changePassInput);
+            if(validate){
+                return {response: true };
+            }else{
+                return {response: false };
+            }
+        }catch(error){
+            if(error.message === 'incorrect password'){
+                throw new Error('incorrect password');
             }else{
                 throw new Error('An error occurred');
             }

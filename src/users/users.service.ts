@@ -7,7 +7,7 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
 import { AddTeamInput } from './dto/add-team.input';
 import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
 
@@ -141,9 +141,9 @@ export class UsersService {
         }
     }
 
-    async changePass(changePassUserInput: ChangePassUserInput): Promise<User> {
-        const newPassword = changePassUserInput.password;
-        const recoveryPass = changePassUserInput.recoveryPass;
+    async changePassRecovery(changePassRecoveryUserInput: ChangePassRecoveryUserInput): Promise<User> {
+        const newPassword = changePassRecoveryUserInput.password;
+        const recoveryPass = changePassRecoveryUserInput.recoveryPass;
         const user = await this.usersRepository.findOne({
             where: {
                 recoveryPass
@@ -158,6 +158,28 @@ export class UsersService {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
             user.recoveryPass = null;
+            await this.usersRepository.save(user);
+            return user;
+        }
+    }
+
+    async changePassword(changePassInput: ChangePassUserInput): Promise<User> {
+        const email = changePassInput.email;
+        const oldPassword = changePassInput.oldPassword;
+        const newPassword = changePassInput.newPassword;
+        const user = await this.usersRepository.findOne({
+            where: {
+                email
+            }
+        })
+
+        const valid = await bcrypt.compare(oldPassword, user.password);
+        
+        if(!valid){
+            throw new Error('incorrect password');
+        }else{
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            user.password = hashedPassword;
             await this.usersRepository.save(user);
             return user;
         }
