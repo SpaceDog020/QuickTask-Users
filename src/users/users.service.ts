@@ -110,7 +110,7 @@ export class UsersService {
 
         client.sendMail(
             {
-                from: '"Quick Task" <noreply@example.com>',
+                from: '"Soporte de Quick Task" <noreply@example.com>',
                 to: email,
                 subject: "Codigo de recuperacion de contraseña",
                 text: "Estimado " + user.name + " " + user.lastName + " su codigo de recuperacion de contraseña es: " + recoveryPass,
