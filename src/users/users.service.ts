@@ -8,8 +8,6 @@ import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
 import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
-import { AddTeamInput } from './dto/add-team.input';
-import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
 
 @Injectable()
 export class UsersService {
@@ -190,62 +188,6 @@ export class UsersService {
             user.password = hashedPassword;
             await this.usersRepository.save(user);
             return user;
-        }
-    }
-
-    async addTeam(addTeamInput: AddTeamInput): Promise<User> {
-        const idUser = addTeamInput.idUser;
-        const idTeam = addTeamInput.idTeam;
-        const user = await this.usersRepository.findOne({
-            where: {
-                id: idUser
-            }
-        })
-
-        if (!user) {
-            throw new Error('user does not exist');
-        } else {
-            if (!user.idTeams) {
-                user.idTeams = [idTeam];
-                await this.usersRepository.save(user);
-                return user;
-            } else {
-                const exist = await user.idTeams.find(id => id === idTeam);
-                if (exist) {
-                    throw new Error('team already added');
-                } else {
-                    user.idTeams.push(idTeam);
-                    await this.usersRepository.save(user);
-                    return user;
-                }
-            }
-        }
-    }
-
-    async deleteTeam(deleteTeamFromUserInput: DeleteTeamFromUserInput): Promise<User> {
-        const idUser = deleteTeamFromUserInput.idUser;
-        const idTeam = deleteTeamFromUserInput.idTeam;
-        const user = await this.usersRepository.findOne({
-            where: {
-                id: idUser
-            }
-        })
-
-        if (!user) {
-            throw new Error('user does not exist');
-        } else {
-            if (!user.idTeams) {
-                throw new Error('team list is empty');
-            } else {
-                const exist = await user.idTeams.find(id => id === idTeam);
-                if (!exist) {
-                    throw new Error('team does not exist');
-                } else {
-                    user.idTeams = user.idTeams.filter(id => id !== idTeam);
-                    await this.usersRepository.save(user);
-                    return user;
-                }
-            }
         }
     }
 
