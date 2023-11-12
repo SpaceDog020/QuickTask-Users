@@ -5,6 +5,7 @@ import { RegisterUserInput } from './dto/register-user.input';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
 import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { DeleteUserInput } from './dto/delete-user.input';
 
 @Resolver()
 export class UsersResolver {
@@ -27,7 +28,11 @@ export class UsersResolver {
     @Query((returns) => User)
     email(@Args('email', { type: () => String }) email: string) {
         console.log("[*] email");
-        return this.usersService.findUserByEmail(email);
+        try{
+            return this.usersService.findUserByEmail(email);
+        }catch(error){
+            throw new Error(error.message);
+        }
     }
 
     @Query((returns) => [User])
@@ -39,13 +44,6 @@ export class UsersResolver {
     @Mutation((returns) => ResponseUser)
     async register(@Args('userInput') userInput: RegisterUserInput) {
         console.log("[*] register");
-        // Verifica si el correo electrónico ya está en uso
-        const existingUser = await this.usersService.findUserByEmail(userInput.email);
-        if (existingUser) {
-            return { response: false };
-        }
-
-        // Crea un nuevo usuario
         const newUser = await this.usersService.registerUser(userInput);
         return { response: true };
     }
@@ -125,6 +123,21 @@ export class UsersResolver {
         console.log("[*] updateUser");
         try {
             const validate = await this.usersService.updateUser(updateUserInput);
+            if (validate) {
+                return { response: true };
+            } else {
+                return { response: false };
+            }
+        }catch(error){
+            throw new Error(error.message);
+        }
+    }
+
+    @Mutation((returns) => ResponseUser)
+    async deleteUser(@Args('deleteUserInput') deleteUserInput: DeleteUserInput) {
+        console.log("[*] deleteUser");
+        try {
+            const validate = await this.usersService.deleteUser(deleteUserInput);
             if (validate) {
                 return { response: true };
             } else {
