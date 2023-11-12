@@ -8,8 +8,7 @@ import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
 import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
-import { AddTeamInput } from './dto/add-team.input';
-import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
+import { DeleteUserInput } from './dto/delete-user.input';
 
 @Injectable()
 export class UsersService {
@@ -45,11 +44,16 @@ export class UsersService {
     }
 
     async findUserByEmail(email: string): Promise<User> {
-        return this.usersRepository.findOne({
+        const user = await this.usersRepository.findOne({
             where: {
                 email
             }
-        });
+        })
+        if (!user) {
+            throw new Error('El usuario no existe');
+        }else{
+            return user;
+        }
     }
 
     async findUsersByIds(userIds: number[]): Promise<User[]> {
@@ -61,16 +65,27 @@ export class UsersService {
     }
 
     async registerUser(user: RegisterUserInput): Promise<User> {
-        const { password, ...userData } = user;
-
+        const email = user.email;
+        const password = user.password;
+        const name = user.name;
+        const lastName = user.lastName;
+        const userExists = await this.usersRepository.findOne({
+            where: {
+                email
+            }
+        })
+        if (userExists) {
+            throw new Error('Usuario con ese correo ya existe');
+        }
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        const newUser = this.usersRepository.create({
-            ...userData,
-            password: hashedPassword,
-        });
-
-        return this.usersRepository.save(newUser);
+        const newUser = new User();
+        newUser.email = email;
+        newUser.password = hashedPassword;
+        newUser.name = name;
+        newUser.lastName = lastName;
+        newUser.accessToken = jwt.sign({ email, password }, 'quicktask');
+        await this.usersRepository.save(newUser);
+        return newUser;
     }
 
     async login(loginInput: LoginUserInput): Promise<User> {
@@ -193,62 +208,6 @@ export class UsersService {
         }
     }
 
-    async addTeam(addTeamInput: AddTeamInput): Promise<User> {
-        const idUser = addTeamInput.idUser;
-        const idTeam = addTeamInput.idTeam;
-        const user = await this.usersRepository.findOne({
-            where: {
-                id: idUser
-            }
-        })
-
-        if (!user) {
-            throw new Error('user does not exist');
-        } else {
-            if (!user.idTeams) {
-                user.idTeams = [idTeam];
-                await this.usersRepository.save(user);
-                return user;
-            } else {
-                const exist = await user.idTeams.find(id => id === idTeam);
-                if (exist) {
-                    throw new Error('team already added');
-                } else {
-                    user.idTeams.push(idTeam);
-                    await this.usersRepository.save(user);
-                    return user;
-                }
-            }
-        }
-    }
-
-    async deleteTeam(deleteTeamFromUserInput: DeleteTeamFromUserInput): Promise<User> {
-        const idUser = deleteTeamFromUserInput.idUser;
-        const idTeam = deleteTeamFromUserInput.idTeam;
-        const user = await this.usersRepository.findOne({
-            where: {
-                id: idUser
-            }
-        })
-
-        if (!user) {
-            throw new Error('user does not exist');
-        } else {
-            if (!user.idTeams) {
-                throw new Error('team list is empty');
-            } else {
-                const exist = await user.idTeams.find(id => id === idTeam);
-                if (!exist) {
-                    throw new Error('team does not exist');
-                } else {
-                    user.idTeams = user.idTeams.filter(id => id !== idTeam);
-                    await this.usersRepository.save(user);
-                    return user;
-                }
-            }
-        }
-    }
-
     async updateUser(updateUserInput: UpdateUserInput): Promise<User> {
         const oldEmail = updateUserInput.oldEmail;
         const user = await this.usersRepository.findOne({
@@ -271,6 +230,25 @@ export class UsersService {
             }
             await this.usersRepository.save(user);
             return user;
+        }
+    }
+
+    async deleteUser(deleteUserInput: DeleteUserInput): Promise<boolean> {
+        const id = deleteUserInput.idUser;
+        const password = deleteUserInput.password;
+        const user = await this.usersRepository.findOne({
+            where: {
+                id
+            }
+        })
+
+        const valid = await bcrypt.compare(password, user.password);
+
+        if (!valid) {
+            throw new Error('Contraseña Incorrecta');
+        } else {
+            await this.usersRepository.delete(id);
+            return true;
         }
     }
 }
