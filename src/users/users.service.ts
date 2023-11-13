@@ -97,12 +97,12 @@ export class UsersService {
             }
         })
         if (!user) {
-            throw new Error('user does not exist');
+            throw new Error('Credenciales incorrectas');
         }
         const valid = await bcrypt.compare(password, user.password);
 
         if (!valid) {
-            throw new Error('incorrect password');
+            throw new Error('Credenciales incorrectas');
         }
         user.accessToken = jwt.sign({ email, password }, 'quicktask');
         await this.usersRepository.save(user);
@@ -117,7 +117,7 @@ export class UsersService {
             }
         })
         if (!user) {
-            throw new Error('user does not exist');
+            throw new Error('Error al enviar el correo');
         }
 
         const nodemailer = require('nodemailer');
@@ -140,9 +140,8 @@ export class UsersService {
             },
             (error) => {
                 if (error) {
-                    throw new Error('email could not be sent');
+                    throw new Error('Error al enviar el correo');
                 } else {
-                    console.log('Email sent');
                     user.recoveryPass = recoveryPass;
                     this.usersRepository.save(user);
                 }
@@ -157,7 +156,7 @@ export class UsersService {
             where: { recoveryPass }
         })
         if (!user) {
-            throw new Error('incorrect recovery code');
+            throw new Error('Codigo de recuperacion incorrecto');
         } else {
             await this.usersRepository.save(user);
             return user;
@@ -176,7 +175,7 @@ export class UsersService {
         const same = await bcrypt.compare(newPassword, user.password);
 
         if (same) {
-            throw new Error('same password');
+            throw new Error('La nueva contraseña no puede ser igual a la anterior');
         } else {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
@@ -199,7 +198,7 @@ export class UsersService {
         const valid = await bcrypt.compare(oldPassword, user.password);
 
         if (!valid) {
-            throw new Error('incorrect password');
+            throw new Error('Contraseña Incorrecta');
         } else {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
@@ -217,7 +216,7 @@ export class UsersService {
         })
 
         if (!user) {
-            throw new Error('user does not exist');
+            throw new Error('El usuario no existe');
         } else {
             if (updateUserInput.name) {
                 user.name = updateUserInput.name;
