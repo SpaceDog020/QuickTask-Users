@@ -1,4 +1,5 @@
 import { Query, Resolver, Args, Int, Mutation } from '@nestjs/graphql';
+import { request } from 'graphql-request';
 import { UsersService } from './users.service';
 import { ResponseUser, User } from './entities/user.entity';
 import { RegisterUserInput } from './dto/register-user.input';
@@ -19,6 +20,40 @@ export class UsersResolver {
         return this.usersService.findAll();
     }
 
+    @Query((returns) => [User])
+    async usersByTeamId(@Args('teamId', { type: () => Int }) teamId: number) {
+        console.log("[*] usersByTeamId");
+
+        interface TeamResponse {
+            team: {
+                idUsers: number[];
+            };
+        }
+
+        try {
+            const teamQuery = `
+                query {
+                    team(id: ${teamId}) {
+                    idUsers
+                    }
+                }
+            `;
+
+            const team: TeamResponse = await request('http://localhost:3002/graphql', teamQuery);
+
+            if (!team) {
+                throw new Error('El equipo no existe');
+            }
+
+            const ids = team.team.idUsers;
+
+            return this.usersService.findUsersByIds(ids);
+        } catch (error) {
+            throw new Error(error.message);
+        }
+
+    }
+
     @Query((returns) => User)
     user(@Args('id', { type: () => Int }) id: number) {
         console.log("[*] user");
@@ -28,9 +63,9 @@ export class UsersResolver {
     @Query((returns) => User)
     email(@Args('email', { type: () => String }) email: string) {
         console.log("[*] email");
-        try{
+        try {
             return this.usersService.findUserByEmail(email);
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -58,7 +93,7 @@ export class UsersResolver {
             } else {
                 return { response: false };
             }
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -73,7 +108,7 @@ export class UsersResolver {
             } else {
                 return { response: false };
             }
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -88,7 +123,7 @@ export class UsersResolver {
             } else {
                 return { response: false };
             }
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -103,7 +138,7 @@ export class UsersResolver {
             } else {
                 return { response: false };
             }
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -113,7 +148,7 @@ export class UsersResolver {
         console.log("[*] login");
         try {
             return await this.usersService.login(loginInput);
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -128,7 +163,7 @@ export class UsersResolver {
             } else {
                 return { response: false };
             }
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
@@ -143,7 +178,7 @@ export class UsersResolver {
             } else {
                 return { response: false };
             }
-        }catch(error){
+        } catch (error) {
             throw new Error(error.message);
         }
     }
