@@ -51,7 +51,7 @@ export class UsersService {
         })
         if (!user) {
             throw new Error('El usuario no existe');
-        }else{
+        } else {
             return user;
         }
     }

@@ -46,12 +46,15 @@ export class UsersResolver {
             }
 
             const ids = team.team.idUsers;
-
-            return this.usersService.findUsersByIds(ids);
+            try {
+                return this.usersService.findUsersByIds(ids);
+            } catch (error) {
+                throw new Error(error.message);
+            }
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            throw new Error(errorMessage);
         }
-
     }
 
     @Query((returns) => User)
@@ -66,7 +69,11 @@ export class UsersResolver {
         try {
             return this.usersService.findUserByEmail(email);
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
@@ -94,7 +101,11 @@ export class UsersResolver {
                 return { response: false };
             }
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
@@ -109,7 +120,11 @@ export class UsersResolver {
                 return { response: false };
             }
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
@@ -124,7 +139,11 @@ export class UsersResolver {
                 return { response: false };
             }
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
@@ -139,7 +158,11 @@ export class UsersResolver {
                 return { response: false };
             }
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
@@ -149,7 +172,11 @@ export class UsersResolver {
         try {
             return await this.usersService.login(loginInput);
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
@@ -164,22 +191,59 @@ export class UsersResolver {
                 return { response: false };
             }
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
         }
     }
 
     @Mutation((returns) => ResponseUser)
     async deleteUser(@Args('deleteUserInput') deleteUserInput: DeleteUserInput) {
         console.log("[*] deleteUser");
+
+        interface TeamResponse {
+            kickUserAllTeams: {
+                response: boolean;
+            };
+        }
+
         try {
-            const validate = await this.usersService.deleteUser(deleteUserInput);
-            if (validate) {
-                return { response: true };
-            } else {
+
+            const teamMutation = `
+                mutation ($idUser: Int!) {
+                    kickUserAllTeams(kickUserAllTeamsInput:{
+                        idUser: $idUser
+                    }) {
+                        response
+                    }
+                }
+            `;
+
+            const variables = {
+                idUser: deleteUserInput.idUser
+            };
+            const validateTeam: TeamResponse = await request('http://localhost:3002/graphql', teamMutation, variables);
+
+            if (!validateTeam.kickUserAllTeams.response) {
                 return { response: false };
+            } else {
+                try {
+                    const validate = await this.usersService.deleteUser(deleteUserInput);
+                    if (validate) {
+                        return { response: true };
+                    } else {
+                        return { response: false };
+                    }
+                } catch (error) {
+                    throw new Error(error.message);
+                }
             }
+
         } catch (error) {
-            throw new Error(error.message);
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            throw new Error(errorMessage);
         }
     }
 }
