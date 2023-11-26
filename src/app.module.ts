@@ -6,6 +6,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApolloFederationDriver, ApolloFederationDriverConfig } from '@nestjs/apollo';
 import { ConfigModule } from '@nestjs/config';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -29,7 +30,8 @@ import { ConfigModule } from '@nestjs/config';
       entities: ['dist/**/*.entity{.ts,.js}'],
       synchronize: true
     }),
-    UsersModule],
+    UsersModule,
+    RoleModule],
   controllers: [AppController],
   providers: [AppService],
 })

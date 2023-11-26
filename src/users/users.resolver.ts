@@ -1,18 +1,29 @@
-import { Query, Resolver, Args, Int, Mutation } from '@nestjs/graphql';
+import { Query, Resolver, Args, Int, Mutation, ResolveField, Parent } from '@nestjs/graphql';
 import { request } from 'graphql-request';
 import { UsersService } from './users.service';
+import { RoleService } from 'src/role/role.service';
 import { ResponseUser, User } from './entities/user.entity';
 import { RegisterUserInput } from './dto/register-user.input';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { AddRoleUserInput, ChangePassRecoveryUserInput, ChangePassUserInput, RemoveRoleAllUsersInput, RemoveRoleUserInput, UpdateUserInput } from './dto/update-user.input';
 import { DeleteUserInput } from './dto/delete-user.input';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Role } from 'src/role/entities/role.entity';
 
-@Resolver()
+@Resolver(() => User)
 export class UsersResolver {
     constructor(
         private usersService: UsersService,
+        private rolesService: RoleService
     ) { }
+
+    @Query((returns) => User)
+    validateUser(@Args('id', { type: () => Int }) id: number) {
+        console.log("[*] validateUser");
+        return this.usersService.findUserById(id);
+    }
 
     @Query((returns) => [User])
     users() {
@@ -23,7 +34,6 @@ export class UsersResolver {
     @Query((returns) => [User])
     async usersByTeamId(@Args('teamId', { type: () => Int }) teamId: number) {
         console.log("[*] usersByTeamId");
-
         interface TeamResponse {
             team: {
                 idUsers: number[];
@@ -245,5 +255,52 @@ export class UsersResolver {
             const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
             throw new Error(errorMessage);
         }
+    }
+
+    @Mutation((returns) => ResponseUser)
+    async addRoleUser(@Args('addRoleUserInput') addRoleUserInput: AddRoleUserInput) {
+        console.log("[*] addRoleUser");
+        try {
+            const validate = await this.usersService.addRoleUser(addRoleUserInput.idUser, addRoleUserInput.idRole);
+            if (validate) {
+                return { response: true };
+            } else {
+                return { response: false };
+            }
+        } catch (error) {
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
+        }
+    }
+
+    @Mutation((returns) => ResponseUser)
+    async removeRoleUser(@Args('removeRoleUserInput') removeRoleUserInput: RemoveRoleUserInput) {
+        console.log("[*] removeRoleUser");
+        try {
+            const validate = await this.usersService.removeRoleUser(removeRoleUserInput.idUser);
+            if (validate) {
+                return { response: true };
+            } else {
+                return { response: false };
+            }
+        } catch (error) {
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            if (errorMessage === 'Error desconocido') {
+                throw new Error(error.message);
+            }
+            throw new Error(errorMessage);
+        }
+    }
+
+    @ResolveField((returns) => Role)
+    async role(@Parent() user: User): Promise<Role | null> {
+        if (user.role) {
+            const role = await this.rolesService.findRoleById(user.role.id);
+            return role;
+        }
+        return null;
     }
 }

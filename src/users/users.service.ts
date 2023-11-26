@@ -7,18 +7,21 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { AddRoleUserInput, ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
 import { DeleteUserInput } from './dto/delete-user.input';
+import { RoleService } from 'src/role/role.service';
+import { Role } from 'src/role/entities/role.entity';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        private rolesService: RoleService
     ) { }
 
     async findAll(): Promise<User[]> {
-        return this.usersRepository.find();
+        return this.usersRepository.find({relations: ['role']});
     }
 
     async findRecoveryPass(): Promise<number> {
@@ -37,9 +40,8 @@ export class UsersService {
 
     async findUserById(id: number): Promise<User> {
         return this.usersRepository.findOne({
-            where: {
-                id
-            }
+            where: { id },
+            relations: ['role'], // Asegúrate de cargar la relación
         });
     }
 
@@ -47,7 +49,8 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email
-            }
+            },
+            relations: ['role'],
         })
         if (!user) {
             throw new Error('El usuario no existe');
@@ -61,7 +64,21 @@ export class UsersService {
             where: {
                 id: In(userIds),
             },
+            relations: ['role'],
         });
+    }
+
+    async findUsersByRole(idRole: number): Promise<User[]> {
+        const role = await this.rolesService.findRoleById(idRole);
+        if (!role) {
+            throw new Error('El rol no existe');
+        } else {
+            return this.usersRepository.find({
+                where: {
+                    role: { id: idRole },
+                }
+            })
+        }
     }
 
     async registerUser(user: RegisterUserInput): Promise<User> {
@@ -83,7 +100,8 @@ export class UsersService {
         newUser.password = hashedPassword;
         newUser.name = name;
         newUser.lastName = lastName;
-        newUser.accessToken = jwt.sign({ email, password }, 'quicktask');
+        newUser.role = null;
+        newUser.accessToken = null;
         await this.usersRepository.save(newUser);
         return newUser;
     }
@@ -94,7 +112,8 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email
-            }
+            },
+            relations: ['role'],
         })
         if (!user) {
             throw new Error('Credenciales incorrectas');
@@ -104,7 +123,7 @@ export class UsersService {
         if (!valid) {
             throw new Error('Credenciales incorrectas');
         }
-        user.accessToken = jwt.sign({ email, password }, 'quicktask');
+        user.accessToken = jwt.sign({ email, password }, process.env.JWT_SECRET);
         await this.usersRepository.save(user);
         return user;
     }
@@ -212,7 +231,8 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email: oldEmail
-            }
+            },
+            relations: ['role'],
         })
 
         if (!user) {
@@ -247,6 +267,46 @@ export class UsersService {
             throw new Error('Contraseña Incorrecta');
         } else {
             await this.usersRepository.delete(id);
+            return true;
+        }
+    }
+
+    async addRoleUser(idUser: number, idRole: number): Promise<boolean> {
+        const user = await this.usersRepository.findOne({
+            where: {
+                id: idUser
+            }
+        })
+
+        if (!user) {
+            throw new Error('El usuario no existe');
+        }
+
+        const role = await this.rolesService.findRoleById(idRole);
+
+        if (!role) {
+            throw new Error('El rol no existe');
+        }
+
+        user.role = role;
+        await this.usersRepository.save(user);
+
+        return true;
+
+    }
+
+
+    async removeRoleUser(idUser: number): Promise<boolean> {
+        const user = await this.usersRepository.findOne({
+            where: {
+                id: idUser
+            }
+        })
+        if (!user) {
+            throw new Error('El usuario no existe');
+        } else {
+            user.role = null;
+            await this.usersRepository.save(user);
             return true;
         }
     }
