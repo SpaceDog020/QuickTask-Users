@@ -47,3 +47,28 @@ export class ChangePassRecoveryUserInput{
     @Field((type) => Int)
     recoveryPass: number;
 }
+
+@InputType()
+export class AddRoleUserInput{
+    @IsNotEmpty()
+    @Field((type) => Int)
+    idUser: number;
+
+    @IsNotEmpty()
+    @Field((type) => Int)
+    idRole: number;
+}
+
+@InputType()
+export class RemoveRoleUserInput{
+    @IsNotEmpty()
+    @Field((type) => Int)
+    idUser: number;
+}
+
+@InputType()
+export class RemoveRoleAllUsersInput{
+    @IsNotEmpty()
+    @Field((type) => Int)
+    idRole: number;
+}
