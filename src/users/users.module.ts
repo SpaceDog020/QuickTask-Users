@@ -1,12 +1,25 @@
-import { Module } from '@nestjs/common';
-import { User } from './entities/user.entity';
+import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersService } from './users.service';
 import { UsersResolver } from './users.resolver';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtStrategy } from '../auth/jwt.strategy';
+
+import { User } from './entities/user.entity';
+import { RoleModule } from 'src/role/role.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
-  providers: [UsersService, UsersResolver],
-  exports: [UsersService]
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    JwtModule.registerAsync({
+      useFactory: async () => ({
+        secret: process.env.JWT_SECRET,
+        signOptions: { expiresIn: '1d' },
+      }),
+    }),
+    forwardRef(() => RoleModule), // Utiliza forwardRef aquí
+  ],
+  providers: [UsersService, UsersResolver, JwtStrategy],
+  exports: [UsersService],
 })
 export class UsersModule {}

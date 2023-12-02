@@ -7,18 +7,21 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
-import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
+import { AddRoleUserInput, ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
 import { DeleteUserInput } from './dto/delete-user.input';
+import { RoleService } from 'src/role/role.service';
+import { Role } from 'src/role/entities/role.entity';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        private rolesService: RoleService
     ) { }
 
     async findAll(): Promise<User[]> {
-        return this.usersRepository.find();
+        return this.usersRepository.find({relations: ['role']});
     }
 
     async findRecoveryPass(): Promise<number> {
@@ -37,9 +40,8 @@ export class UsersService {
 
     async findUserById(id: number): Promise<User> {
         return this.usersRepository.findOne({
-            where: {
-                id
-            }
+            where: { id },
+            relations: ['role'], // Asegúrate de cargar la relación
         });
     }
 
@@ -47,11 +49,12 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email
-            }
+            },
+            relations: ['role'],
         })
         if (!user) {
             throw new Error('El usuario no existe');
-        }else{
+        } else {
             return user;
         }
     }
@@ -61,7 +64,21 @@ export class UsersService {
             where: {
                 id: In(userIds),
             },
+            relations: ['role'],
         });
+    }
+
+    async findUsersByRole(idRole: number): Promise<User[]> {
+        const role = await this.rolesService.findRoleById(idRole);
+        if (!role) {
+            throw new Error('El rol no existe');
+        } else {
+            return this.usersRepository.find({
+                where: {
+                    role: { id: idRole },
+                }
+            })
+        }
     }
 
     async registerUser(user: RegisterUserInput): Promise<User> {
@@ -83,7 +100,8 @@ export class UsersService {
         newUser.password = hashedPassword;
         newUser.name = name;
         newUser.lastName = lastName;
-        newUser.accessToken = jwt.sign({ email, password }, 'quicktask');
+        newUser.role = null;
+        newUser.accessToken = null;
         await this.usersRepository.save(newUser);
         return newUser;
     }
@@ -94,17 +112,18 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email
-            }
+            },
+            relations: ['role'],
         })
         if (!user) {
-            throw new Error('user does not exist');
+            throw new Error('Credenciales incorrectas');
         }
         const valid = await bcrypt.compare(password, user.password);
 
         if (!valid) {
-            throw new Error('incorrect password');
+            throw new Error('Credenciales incorrectas');
         }
-        user.accessToken = jwt.sign({ email, password }, 'quicktask');
+        user.accessToken = jwt.sign({ email, password }, process.env.JWT_SECRET);
         await this.usersRepository.save(user);
         return user;
     }
@@ -117,7 +136,7 @@ export class UsersService {
             }
         })
         if (!user) {
-            throw new Error('user does not exist');
+            throw new Error('Error al enviar el correo');
         }
 
         const nodemailer = require('nodemailer');
@@ -140,9 +159,8 @@ export class UsersService {
             },
             (error) => {
                 if (error) {
-                    throw new Error('email could not be sent');
+                    throw new Error('Error al enviar el correo');
                 } else {
-                    console.log('Email sent');
                     user.recoveryPass = recoveryPass;
                     this.usersRepository.save(user);
                 }
@@ -157,7 +175,7 @@ export class UsersService {
             where: { recoveryPass }
         })
         if (!user) {
-            throw new Error('incorrect recovery code');
+            throw new Error('Codigo de recuperacion incorrecto');
         } else {
             await this.usersRepository.save(user);
             return user;
@@ -176,7 +194,7 @@ export class UsersService {
         const same = await bcrypt.compare(newPassword, user.password);
 
         if (same) {
-            throw new Error('same password');
+            throw new Error('La nueva contraseña no puede ser igual a la anterior');
         } else {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
@@ -199,7 +217,7 @@ export class UsersService {
         const valid = await bcrypt.compare(oldPassword, user.password);
 
         if (!valid) {
-            throw new Error('incorrect password');
+            throw new Error('Contraseña Incorrecta');
         } else {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
@@ -213,11 +231,12 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email: oldEmail
-            }
+            },
+            relations: ['role'],
         })
 
         if (!user) {
-            throw new Error('user does not exist');
+            throw new Error('El usuario no existe');
         } else {
             if (updateUserInput.name) {
                 user.name = updateUserInput.name;
@@ -248,6 +267,46 @@ export class UsersService {
             throw new Error('Contraseña Incorrecta');
         } else {
             await this.usersRepository.delete(id);
+            return true;
+        }
+    }
+
+    async addRoleUser(idUser: number, idRole: number): Promise<boolean> {
+        const user = await this.usersRepository.findOne({
+            where: {
+                id: idUser
+            }
+        })
+
+        if (!user) {
+            throw new Error('El usuario no existe');
+        }
+
+        const role = await this.rolesService.findRoleById(idRole);
+
+        if (!role) {
+            throw new Error('El rol no existe');
+        }
+
+        user.role = role;
+        await this.usersRepository.save(user);
+
+        return true;
+
+    }
+
+
+    async removeRoleUser(idUser: number): Promise<boolean> {
+        const user = await this.usersRepository.findOne({
+            where: {
+                id: idUser
+            }
+        })
+        if (!user) {
+            throw new Error('El usuario no existe');
+        } else {
+            user.role = null;
+            await this.usersRepository.save(user);
             return true;
         }
     }
