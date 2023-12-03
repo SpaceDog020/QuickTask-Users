@@ -67,6 +67,52 @@ export class UsersResolver {
         }
     }
 
+    @Query((returns) => [User])
+    async usersByTeamIds(@Args('teamIds', { type: () => [Int] }) teamIds: number[]) {
+        console.log("[*] usersByTeams");
+        console.log(teamIds);
+        interface TeamResponse {
+            teamsUsersIds: {
+                userIds: number[];
+            };
+        }
+        console.log("asd1");
+        try {
+            console.log("asd2");
+            const variables = {
+                ids: teamIds
+            
+            }
+
+            const teamQuery = `
+                query ($ids: [Int!]!) {
+                    teamsUsersIds(ids: $ids) {
+                        userIds
+                    }
+                }
+            `;
+
+
+            
+            console.log("asd3");
+            const usersIds: TeamResponse = await request('http://localhost:3002/graphql', teamQuery,variables);
+            console.log("asd4");
+            const ids = usersIds.teamsUsersIds.userIds;
+            console.log("asd");
+            try {
+                return this.usersService.findUsersByIds(ids);
+            } catch (error) {
+                throw new Error(error.message);
+            }
+        } catch (error) {
+            const errorMessage = error.response?.errors[0]?.message || 'Error desconocido';
+            throw new Error(errorMessage);
+        }
+
+        
+    }
+
+
     @Query((returns) => User)
     user(@Args('id', { type: () => Int }) id: number) {
         console.log("[*] user");
