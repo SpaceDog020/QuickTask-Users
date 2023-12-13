@@ -19,6 +19,9 @@ export class UpdateUserInput{
 
     @Field({ nullable: true })
     password: string;
+
+    @Field({ nullable: true })
+    role: string;
 }
 
 @InputType()
@@ -46,29 +49,4 @@ export class ChangePassRecoveryUserInput{
     @IsNotEmpty()
     @Field((type) => Int)
     recoveryPass: number;
-}
-
-@InputType()
-export class AddRoleUserInput{
-    @IsNotEmpty()
-    @Field((type) => Int)
-    idUser: number;
-
-    @IsNotEmpty()
-    @Field((type) => Int)
-    idRole: number;
-}
-
-@InputType()
-export class RemoveRoleUserInput{
-    @IsNotEmpty()
-    @Field((type) => Int)
-    idUser: number;
-}
-
-@InputType()
-export class RemoveRoleAllUsersInput{
-    @IsNotEmpty()
-    @Field((type) => Int)
-    idRole: number;
 }

@@ -6,7 +6,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from '../auth/jwt.strategy';
 
 import { User } from './entities/user.entity';
-import { RoleModule } from 'src/role/role.module';
 
 @Module({
   imports: [
@@ -17,7 +16,6 @@ import { RoleModule } from 'src/role/role.module';
         signOptions: { expiresIn: '1d' },
       }),
     }),
-    forwardRef(() => RoleModule), // Utiliza forwardRef aquí
   ],
   providers: [UsersService, UsersResolver, JwtStrategy],
   exports: [UsersService],

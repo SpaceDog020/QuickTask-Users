@@ -1,5 +1,4 @@
 import { ObjectType, Field, Int } from '@nestjs/graphql';
-import { Role } from 'src/role/entities/role.entity';
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 
 @Entity()
@@ -25,10 +24,9 @@ export class User {
   @Field()
   password: string;
 
-  @ManyToOne(() => Role, role => role.users)
-  @JoinColumn({ name: 'roleId' })
-  @Field(() => Role, { nullable: true })
-  role: Role;
+  @Column({ nullable: true })
+  @Field({ nullable: true })
+  role: string;
 
   @Column({ nullable: true })
   @Field({ nullable: true })
