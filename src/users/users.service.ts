@@ -1,87 +1,108 @@
 import { Injectable } from '@nestjs/common';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { RegisterUserInput } from './dto/register-user.input';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { LoginUserInput } from './dto/login-user.input';
 import { RecoveryUserInput, ValidateRecoveryUserInput } from './dto/recovery-user.input.';
 import { ChangePassRecoveryUserInput, ChangePassUserInput, UpdateUserInput } from './dto/update-user.input';
-import { AddTeamInput } from './dto/add-team.input';
-import { DeleteTeamFromUserInput } from './dto/delete-team-from-user.input';
-
+import { DeleteUserInput } from './dto/delete-user.input';
 @Injectable()
 export class UsersService {
     constructor(
-        @InjectRepository(User) 
+        @InjectRepository(User)
         private usersRepository: Repository<User>,
-    ) {}
-    
+    ) { }
+
     async findAll(): Promise<User[]> {
         return this.usersRepository.find();
     }
 
-    async findRecoveryPass(): Promise<number>{
+    async findRecoveryPass(): Promise<number> {
         const recoveryPass = Math.floor(100000 + Math.random() * 900000);
         const user = await this.usersRepository.findOne({
             where: {
                 recoveryPass
             }
         });
-        if(!user){
+        if (!user) {
             return recoveryPass;
-        }else{
+        } else {
             return this.findRecoveryPass();
         }
     }
 
     async findUserById(id: number): Promise<User> {
         return this.usersRepository.findOne({
-            where: {
-                id
-            }
+            where: { id },
         });
     }
 
     async findUserByEmail(email: string): Promise<User> {
-        return this.usersRepository.findOne({ 
+        const user = await this.usersRepository.findOne({
             where: {
                 email
-            }
+            },
+        })
+        if (!user) {
+            throw new Error('El usuario no existe');
+        } else {
+            return user;
+        }
+    }
+
+    async findUsersByIds(userIds: number[]): Promise<User[]> {
+        return this.usersRepository.find({
+            where: {
+                id: In(userIds),
+            },
         });
     }
 
     async registerUser(user: RegisterUserInput): Promise<User> {
-        const { password, ...userData } = user;
-
+        const email = user.email;
+        const password = user.password;
+        const name = user.name;
+        const lastName = user.lastName;
+        const userExists = await this.usersRepository.findOne({
+            where: {
+                email
+            }
+        })
+        if (userExists) {
+            throw new Error('Usuario con ese correo ya existe');
+        }
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        const newUser = this.usersRepository.create({
-        ...userData,
-        password: hashedPassword,
-        });
-
-        return this.usersRepository.save(newUser);
+        const newUser = new User();
+        newUser.email = email;
+        newUser.password = hashedPassword;
+        newUser.name = name;
+        newUser.lastName = lastName;
+        newUser.role = null;
+        newUser.accessToken = null;
+        await this.usersRepository.save(newUser);
+        return newUser;
     }
 
-    async login(loginInput: LoginUserInput): Promise<User>{
+    async login(loginInput: LoginUserInput): Promise<User> {
         const email = loginInput.email;
         const password = loginInput.password;
         const user = await this.usersRepository.findOne({
             where: {
                 email
-            }
+            },
         })
-        if(!user){
-            throw new Error('user does not exist');
+        if (!user) {
+            throw new Error('Credenciales incorrectas');
         }
         const valid = await bcrypt.compare(password, user.password);
-        
-        if(!valid){
-            throw new Error('incorrect password');
+
+        if (!valid) {
+            throw new Error('Credenciales incorrectas');
         }
-        user.accessToken = jwt.sign({email,password}, 'quicktask');
+        user.accessToken = jwt.sign({ email, password }, process.env.JWT_SECRET);
         await this.usersRepository.save(user);
         return user;
     }
@@ -93,8 +114,8 @@ export class UsersService {
                 email
             }
         })
-        if(!user){
-            throw new Error('user does not exist');
+        if (!user) {
+            throw new Error('Error al enviar el correo');
         }
 
         const nodemailer = require('nodemailer');
@@ -117,9 +138,8 @@ export class UsersService {
             },
             (error) => {
                 if (error) {
-                    throw new Error('email could not be sent');
+                    throw new Error('Error al enviar el correo');
                 } else {
-                    console.log('Email sent');
                     user.recoveryPass = recoveryPass;
                     this.usersRepository.save(user);
                 }
@@ -127,15 +147,15 @@ export class UsersService {
         );
         return user;
     }
-    
+
     async validateRecovery(validateRecoveryInput: ValidateRecoveryUserInput): Promise<User> {
         const recoveryPass = validateRecoveryInput.recoveryPass;
         const user = await this.usersRepository.findOne({
-            where: {recoveryPass}
+            where: { recoveryPass }
         })
-        if(!user){
-            throw new Error('incorrect recovery code');
-        }else{
+        if (!user) {
+            throw new Error('Codigo de recuperacion incorrecto');
+        } else {
             await this.usersRepository.save(user);
             return user;
         }
@@ -152,9 +172,9 @@ export class UsersService {
 
         const same = await bcrypt.compare(newPassword, user.password);
 
-        if(same){
-            throw new Error('same password');
-        }else{
+        if (same) {
+            throw new Error('La nueva contraseña no puede ser igual a la anterior');
+        } else {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
             user.recoveryPass = null;
@@ -174,70 +194,14 @@ export class UsersService {
         })
 
         const valid = await bcrypt.compare(oldPassword, user.password);
-        
-        if(!valid){
-            throw new Error('incorrect password');
-        }else{
+
+        if (!valid) {
+            throw new Error('Contraseña Incorrecta');
+        } else {
             const hashedPassword = await bcrypt.hash(newPassword, 10);
             user.password = hashedPassword;
             await this.usersRepository.save(user);
             return user;
-        }
-    }
-
-    async addTeam(addTeamInput: AddTeamInput): Promise<User>{
-        const idUser = addTeamInput.idUser;
-        const idTeam = addTeamInput.idTeam;
-        const user = await this.usersRepository.findOne({
-            where: {
-                id: idUser
-            }
-        })
-
-        if(!user){
-            throw new Error('user does not exist');
-        }else{
-            if (!user.idTeams) {
-                user.idTeams = [idTeam];
-                await this.usersRepository.save(user);
-                return user;
-            }else{
-                const exist = await user.idTeams.find(id => id === idTeam);
-                if(exist){
-                    throw new Error('team already added');
-                }else{
-                    user.idTeams.push(idTeam);
-                    await this.usersRepository.save(user);
-                    return user;
-                }
-            }
-        }
-    }
-
-    async deleteTeam(deleteTeamFromUserInput: DeleteTeamFromUserInput): Promise<User>{
-        const idUser = deleteTeamFromUserInput.idUser;
-        const idTeam = deleteTeamFromUserInput.idTeam;
-        const user = await this.usersRepository.findOne({
-            where: {
-                id: idUser
-            }
-        })
-
-        if(!user){
-            throw new Error('user does not exist');
-        }else{
-            if (!user.idTeams) {
-                throw new Error('team list is empty');
-            }else{
-                const exist = await user.idTeams.find(id => id === idTeam);
-                if(!exist){
-                    throw new Error('team does not exist');
-                }else{
-                    user.idTeams = user.idTeams.filter(id => id !== idTeam);
-                    await this.usersRepository.save(user);
-                    return user;
-                }
-            }
         }
     }
 
@@ -246,23 +210,45 @@ export class UsersService {
         const user = await this.usersRepository.findOne({
             where: {
                 email: oldEmail
-            }
+            },
         })
 
-        if(!user){
-            throw new Error('user does not exist');
-        }else{
-            if(updateUserInput.name){
+        if (!user) {
+            throw new Error('El usuario no existe');
+        } else {
+            if (updateUserInput.name) {
                 user.name = updateUserInput.name;
             }
-            if(updateUserInput.lastName){
+            if (updateUserInput.lastName) {
                 user.lastName = updateUserInput.lastName;
             }
-            if(updateUserInput.email){
+            if (updateUserInput.role) {
+                user.role = updateUserInput.role;
+            }
+            if (updateUserInput.email) {
                 user.email = updateUserInput.email;
             }
             await this.usersRepository.save(user);
             return user;
+        }
+    }
+
+    async deleteUser(deleteUserInput: DeleteUserInput): Promise<boolean> {
+        const id = deleteUserInput.idUser;
+        const password = deleteUserInput.password;
+        const user = await this.usersRepository.findOne({
+            where: {
+                id
+            }
+        })
+
+        const valid = await bcrypt.compare(password, user.password);
+
+        if (!valid) {
+            throw new Error('Contraseña Incorrecta');
+        } else {
+            await this.usersRepository.delete(id);
+            return true;
         }
     }
 }
